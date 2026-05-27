@@ -1,0 +1,201 @@
+/**
+* Name: Santiago Camacho Moyano
+* StudentID: 128242245
+* email: scamacho-moyano@myseneca.ca
+* Date: 28 September 2025
+
+* I declare that this submission is the result of my own work and I only copied the code that my professor provided to complete my assignments. This submitted piece of work has not been shared with any other student or 3rd party content provider.
+
+  */
+
+#include "dictionary.h"
+
+namespace seneca {
+
+	Dictionary::Dictionary() {}
+
+	Dictionary::Dictionary(const char* filename) {
+
+		std::ifstream file;
+		std::string line;
+
+		file.open(filename, std::ios::in);
+
+		if (file.is_open()) {
+
+			/* string lib getline, count total lines (or words for the array) */
+			while (getline(file, line, '\n'))
+				++m_dictioSize;
+
+			file.clear();
+			file.seekg(0);
+
+			/* Allocate array and values in it */
+			m_dictioArr = new Word[m_dictioSize];
+
+			for (unsigned int i = 0; i < m_dictioSize; i++) {
+
+				/* Reading m_word */
+				getline(file, m_dictioArr[i].m_word, ',');
+
+				/* Reading m_pos */
+				getline(file, line, ',');
+				m_dictioArr[i].m_pos = stringToPos(line);
+				m_dictioArr[i].m_phrasePos = line;
+
+
+				/* Reading m_definition*/
+				getline(file, m_dictioArr[i].m_definition, '\n');
+
+			}
+
+			file.close();
+		}
+		else {		// if file did not open, empty state
+		
+			m_dictioArr = nullptr;
+			m_dictioSize = 0;
+		}
+	}
+
+	void Dictionary::searchWord(const char* word) {
+
+		unsigned int i = 0;
+		unsigned int firstDef = 0;
+		int lengthWord = strlen(word);
+		bool flag = false;
+		using namespace std;
+
+		for (i = 0; i < m_dictioSize; i++) {
+
+			/* Word found */
+			if (strcmp(word, m_dictioArr[i].m_word.c_str()) == 0) {
+
+				++firstDef;
+
+				if (firstDef == 1) {
+					/* this is FIRST DEFINITION */
+					cout << m_dictioArr[i].m_word << " - ";
+				}
+
+				if (flag) {
+					cout << std::string(lengthWord, ' ') << " - ";
+				}
+				/* Print POS only if conditions met */
+				if (g_settings.m_verbose && m_dictioArr[i].m_pos != PartOfSpeech::Unknown) {
+
+					
+					cout << "(" << posToString(m_dictioArr[i].m_pos) << ") ";
+				}
+
+				/* Print definition */
+				cout << m_dictioArr[i].m_definition << endl;
+
+
+				/* MORE DEFINITIONS PRINTED IF CONDITION MET */
+				if (g_settings.m_show_all != false) {
+					
+					flag = true;
+					continue;
+				}
+				else
+					break;	// Break loop after first word
+			}
+		}
+
+		if (firstDef == 0)
+			cout << "Word '" << word << "' was not found in the dictionary." << endl;
+	}
+
+	PartOfSpeech Dictionary::stringToPos(const std::string& pos) {
+
+		if (pos == "n." || pos == "n. pl.") return PartOfSpeech::Noun;
+
+		if (pos == "adv.") return PartOfSpeech::Adverb;
+
+		if (pos == "a.") return PartOfSpeech::Adjective;
+
+		if (pos == "v." || pos == "v. i." || pos == "v. t." || pos == "v. t. & i.") 
+			return PartOfSpeech::Verb;
+
+		if (pos == "prep.") return PartOfSpeech::Preposition;
+
+		if (pos == "pron.") return PartOfSpeech::Pronoun;
+
+		if (pos == "conj.") return PartOfSpeech::Conjunction;
+
+		if (pos == "interj.") return PartOfSpeech::Interjection;
+
+		return PartOfSpeech::Unknown;
+	}
+
+	std::string Dictionary::posToString(const PartOfSpeech pos) {
+
+		switch (pos) {
+		
+		case PartOfSpeech::Noun: return "noun";
+
+		case PartOfSpeech::Pronoun: return "pronoun";
+
+		case PartOfSpeech::Adjective: return "adjective";
+
+		case PartOfSpeech::Adverb: return "adverb";
+
+		case PartOfSpeech::Verb: return "verb";
+
+		case PartOfSpeech::Preposition: return "preposition";
+
+		case PartOfSpeech::Conjunction: return "conjunction";
+
+		case PartOfSpeech::Interjection: return "interjection";
+
+		default: return "unknown";
+		}
+	}
+
+	Dictionary& Dictionary::operator=(Dictionary&& src) noexcept {
+	    if (this != &src) {
+	        delete[] m_dictioArr;
+	        m_dictioArr = src.m_dictioArr;
+	        m_dictioSize = src.m_dictioSize;
+	        src.m_dictioArr = nullptr;
+	        src.m_dictioSize = 0;
+	    }
+	    return *this;
+	}
+
+	Dictionary::Dictionary(Dictionary&& src) noexcept {
+	    m_dictioArr = src.m_dictioArr;
+	    m_dictioSize = src.m_dictioSize;
+	    src.m_dictioArr = nullptr;
+	    src.m_dictioSize = 0;
+	}
+
+	Dictionary::Dictionary(const Dictionary& src) {
+
+		*this = src;
+    }
+
+	Dictionary& Dictionary::operator=(const Dictionary& src) {
+
+		if (this != &src) {
+			delete[] m_dictioArr;
+			m_dictioArr = nullptr;
+			m_dictioSize = 0;
+			if (src.m_dictioArr && src.m_dictioSize > 0) {
+				m_dictioSize = src.m_dictioSize;
+				m_dictioArr = new Word[m_dictioSize];
+				for (unsigned int i = 0; i < m_dictioSize; ++i) {
+					m_dictioArr[i] = src.m_dictioArr[i];
+				}
+			}
+		}
+		return *this;
+
+	}
+
+	Dictionary::~Dictionary() {
+	    delete[] m_dictioArr;
+	}
+
+}	// namespace seneca
