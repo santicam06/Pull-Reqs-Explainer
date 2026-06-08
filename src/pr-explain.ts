@@ -3,9 +3,17 @@ import * as fs from 'fs';
 import * as path from 'path';
 import * as dotenv from 'dotenv';
 import { fileURLToPath } from 'url';
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-dotenv.config({ path: path.resolve(__dirname, '../../../.env') });
+
+for (let d = __dirname; d !== path.dirname(d); d = path.dirname(d)) {
+  if (fs.existsSync(path.join(d, '.env'))) { 
+    dotenv.config({ path: path.join(d, '.env') }); 
+    break; 
+  }
+}
+if (!process.env.OPENROUTER_API_KEY) dotenv.config();
 
 const openai = new OpenAI({
   // Override the baseURL so that we use OpenRouter's API vs. OpenAI
@@ -85,6 +93,8 @@ interface Comment {
   date: string;
 }
 
+/* In the GitHub API, Pull Requests are technically called "Issues." 
+  To get the comments for a PR, you query the issues comments endpoint. */
 async function fetchComments(owner: string, repo: string, issueNum: number): Promise<Comment[]> {
   const url = `https://api.github.com/repos/${owner}/${repo}/issues/${issueNum}/comments`;
 
@@ -163,9 +173,11 @@ async function main() {
         }
         
         const { owner, repo, pullNumber } = confirmURL(url);
-        console.log(`Owner: ${owner}`);
-        console.log(`Repo: ${repo}`);
-        console.log(`Pull Req. Number: ${pullNumber}`);
+        console.error(`Owner: ${owner}`);
+        console.error(`Repo: ${repo}`);
+        console.error(`Pull Req. Number: ${pullNumber}`);
+
+        console.log("\n👓🗃️ Analyzing your Pull Request...")
 
         const patchUrl = url + ".patch";
         const response = await fetch(patchUrl);
@@ -173,11 +185,11 @@ async function main() {
         if (!response.ok) throw new Error(`Failed to fetch: ${response.statusText}`);
         let text = await response.text();
 
-        console.log(`TOTAL CHARACTERS IN PATCH: ${text.length}`);
+        console.error(`TOTAL CHARACTERS IN PATCH: ${text.length}`);
 
         if (text.length > 100000) {
             text = text.slice(0, 100000) + "\n...[PATCH Truncated]...";
-            console.log("ALERT: +100,000 characters in PATCH file. File was truncated.");
+            console.error("ALERT: +100,000 characters in PATCH file. File was truncated.");
         }
 
         let __dirname = path.dirname(new URL(import.meta.url).pathname);
@@ -232,15 +244,15 @@ async function main() {
         
         while (i < 5) {
             ++i;
-            console.log('ITERATION #' + i + '\n');
+            console.error('ITERATION #' + i + '\n');
             if (message && message.tool_calls) {
                 for (const toolCall of message.tool_calls) {
                     if (toolCall && toolCall.type === 'function') {
                         const functionName = toolCall.function.name;
                         const args = JSON.parse(toolCall.function.arguments);
 
-                        console.log('TOOLCALL ID: ' + toolCall.id);
-                        console.log('   FUNCTION CALLED: ' + JSON.stringify(toolCall.function) + '\n');
+                        console.error('TOOLCALL ID: ' + toolCall.id);
+                        console.error('   FUNCTION CALLED: ' + JSON.stringify(toolCall.function) + '\n');
 
                         if (functionName == 'get_github_file') {
                             const content = await getGithubFilePy(
@@ -276,12 +288,11 @@ async function main() {
         const finalMessage = finalResponse.choices[0]?.message.content;
 
         if (finalMessage) {
-        console.log('Gemini says: ' + finalResponse.choices[0]?.message.content);
+        console.log('\nThe PR explainer says: \n\n' + finalResponse.choices[0]?.message.content);
         }
         else {
             console.error('😕 No valid response from Gemini.')
         }
-        
         
             
     } catch (err) {

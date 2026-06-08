@@ -1,3 +1,4 @@
+import sys
 import requests
 import os 
 import hashlib
@@ -44,7 +45,7 @@ def get_github_file(owner, repo, filepath, ref = "main",  maxLines = 500):
         content = response.text
 
         lines = sum(1 for line in content.splitlines())
-        print('Total Number of LINES:', lines)
+        print('Total Number of LINES:', lines, file=sys.stderr)
         lines_list = content.splitlines()
         content = '\n'.join(lines_list)
         

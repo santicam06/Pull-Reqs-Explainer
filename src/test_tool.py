@@ -1,8 +1,10 @@
+import sys
+
 # test_tool.py
 from tools import get_github_file
 
 def test():
-    print("Testing get_github_file...\n")
+    print("Testing get_github_file...\n", file=sys.stderr)
 
     content = get_github_file(
         "santicam06",
