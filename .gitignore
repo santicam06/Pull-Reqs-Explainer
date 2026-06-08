@@ -19,9 +19,6 @@ node_modules/
 # Project-specific cache
 .cache/
 
-# Generated reports
-reports/
-
 # TypeScript build output (noEmit is set, but just in case)
 *.js.map
 *.d.ts
@@ -38,8 +35,10 @@ Desktop.ini
 *.swp
 *.swo
 
-# Directories
+# Personal directories & files
 node_modules
+reports/
+src/debug.txt
 
 # Agents
 AGENTS.md

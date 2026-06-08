@@ -1,8 +1,8 @@
 # Pull-Reqs-Explainer
 
-AI-powered Pull Request review tool. Sends PR diffs and comments to an LLM via OpenRouter, which explains the changes like a Principal Engineer mentoring a junior developer.
+AI-powered Pull Request review tool. Provides a detailed and intuitive report that explains the code changes occured in the Pull Request. Sends the PR's **.patch file** and **user comments** to an LLM, which explains the changes acting as a Principal Engineer mentoring a junior developer.
 
-The LLM can call back a tool to fetch specific GitHub files for deeper context when the diff alone isn't enough.
+The LLM can call back a tool to fetch specific GitHub files in the PR's repo, for deeper context when the .patch and comments alone aren't enough.
 
 ## LLMs used in this application:
 - [Google Gemini 2.5 Pro](https://openrouter.ai/google/gemini-2.5-pro) — for large/complex PRs (>50K chars)
@@ -31,17 +31,25 @@ From this point on, make sure that your present working directory on your termin
    - **Linux (Ubuntu/Debian)**: `sudo apt install python3 python3-pip`
    - **Cloud Workspaces (Codespaces, etc.)**: Python is usually pre-installed. Run `python3 --version` to verify and skip this step.
 
-4. **Install Python `requests` package**:
+4. **Create and Activate a Virtual Environment**:
+   - Create the environment:
+     - **Windows**: `python -m venv .venv`
+     - **macOS/Linux**: `python3 -m venv .venv`
+   - Activate it:
+     - **Windows**: `.\.venv\Scripts\activate`
+     - **macOS/Linux**: `source .venv/bin/activate`
+
+5. **Install Python `requests` package**:
    ```sh
    pip install requests
    ```
 
-5. **Install Dependencies**:
+6. **Install Dependencies**:
    ```sh
    npm install
    ```
 
-6. **Environment Configuration**:
+7. **Environment Configuration**:
    - Create a local `.env` file by copying the template file `.env.example`: This file contains all required API keys for the application:
    ```sh
      # On Windows (Command Prompt)
@@ -54,26 +62,30 @@ From this point on, make sure that your present working directory on your termin
 
    - Open the newly created `.env` file and fill in your `OPENROUTER_API_KEY`. The application **will not** function without a valid `.env` file in the **repository root**.
 
-7. **Main Directories Glossary**:
+8. **Main Directories Glossary**:
    - `./src/pr-explain.ts`: Main script to run application.
    - `./src/tools.py`: Python helper for fetching raw GitHub files (with local `.cache/` support)
-   - `./src/INSTRUCTIONS.md`: System prompt template (mutated at runtime with patch/comment data)
+   - `./src/INSTRUCTIONS.md`: LLM System prompt template (mutated at runtime with patch/comment data)
    - `./node_modules/`: Installed npm dependencies
    - `./.cache/`: Auto-created cache directory for fetched GitHub files (avoids refetching the URL to control rate limit)
 
+> [!TIP]
+> Do not delete the `./.cache/` as it will allow to rapidly retrieve Pull Requests that you had previously run in the application.
+
 ### 🚨 Troubleshooting
 - **Missing API Key**: Ensure `OPENROUTER_API_KEY` is correctly set in your `.env` file at the repository root.
-- **Dependency Issues**: If running in a new environment, ensure you have executed `npm install` (**Step 5**).
+
+- **Dependency Issues**: If running in a new environment, ensure you have executed `pip install requests` inside your **activated Virtual Environment** (**Step 5**) and `npm install` (**Step 6**).
+
 - **Python not found**: Ensure Python is installed and available on your PATH as `python` (**Step 3**).
-- **Python `requests` error**: Run `pip install requests` (**Step 4**).
+
 - **TypeScript errors**: Run `npx tsc --noEmit` to typecheck.
 
 ---
 
 ## 🚀 Usage
 
-> [!IMPORTANT]
-> Provide a full GitHub Pull Request URL as: `https://github.com/owner/repo/pull/pullNumber`.
+#### Provide a full GitHub Pull Request URL as: `https://github.com/owner/repo/pull/pullNumber`.
 
 Examples: 
 - `https://github.com/microsoft/vscode/pull/320333`
@@ -81,18 +93,14 @@ Examples:
 
 ### Run Command
 ```sh
-npx tsx src/pr-explain.ts "<GitHub PR URL>"
+npx tsx src/pr-explain.ts "<GitHub PR URL>" [--verbose]
 ```
 
-### How it works
-1. The tool fetches the PR's `.patch` file and its comments from the GitHub API.
-2. It selects the appropriate model based on patch size (Gemini 2.5 Flash for ≤50K chars, Gemini 2.5 Pro for >50K chars).
-3. It sends both to the selected model with a system prompt instructing it to act as a Principal Engineer.
-4. The model may call the `get_github_file` tool (up to 5 iterations) to fetch specific files from the repo for deeper context.
-5. The final response is printed to the console as a Markdown-formatted review report.
+> [!NOTE]
+> Verbose flag (`--verbose`) generates a `src/debug.txt` file with log traces (overridden per run), use it for engineering purposes only.
 
 ### Output
-The review is printed to the console. The report includes four sections:
+The final response is a Markdown report inside `./reports/`. The report includes four sections:
 - **Summary**: What is the goal of this PR?
 - **The Discussion**: Who agreed, who disagreed, any blockers?
 - **Assessment**: Potential bugs, unhandled edge cases, hidden assumptions.
