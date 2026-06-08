@@ -61,9 +61,6 @@ function getGithubFilePy(
   });
 }
 
-
-
-
 function confirmURL(url: string): { owner: string, repo: string, pullNumber: number } {
     const prefix = "https://github.com/";
 
@@ -165,7 +162,30 @@ const GitHubTool =
 
 
 async function main() {
-    try {
+  
+  const args = process.argv.slice(2);
+  const isVerbose = args.includes('--verbose');
+
+  const validFlags = ['--verbose'];
+  const invalidFlags = args.filter(arg => arg.startsWith('--') && !validFlags.includes(arg));
+  if (invalidFlags.length > 0) {
+    console.error(`An invalid flag was entered. Correct use: npx tsx src/pr-explain.ts "<GitHub PR URL>" [--verbose]`);
+    process.exit(1);
+  }
+
+  // Redirect stderr to debug.txt when verbose mode is enabled (suppress terminal output)
+    let debugStream: fs.WriteStream | null = null;
+    if (isVerbose) {
+        const debugPath = path.resolve(process.cwd(), 'src/debug.txt');
+        debugStream = fs.createWriteStream(debugPath, { flags: 'w' });
+        process.stderr.write = (chunk: any, encoding?: any, callback?: any) => {
+            debugStream?.write(chunk, encoding);
+            if (callback) callback();
+            return true;
+        };
+    }
+  
+  try {
 
         if (!url) {
            console.error("No URL provided. try: node pr-explain.js <GitHub PR URL>");
@@ -191,6 +211,13 @@ async function main() {
             text = text.slice(0, 100000) + "\n...[PATCH Truncated]...";
             console.error("ALERT: +100,000 characters in PATCH file. File was truncated.");
         }
+
+        const MODEL_FLASH = 'google/gemini-2.5-flash';
+        const MODEL_PRO = 'google/gemini-2.5-pro';
+        const PATCH_SIZE_THRESHOLD = 50000;
+
+        const selectedModel = text.length > PATCH_SIZE_THRESHOLD ? MODEL_PRO : MODEL_FLASH;
+        console.error(`USING MODEL: ${selectedModel} (patch size: ${text.length} chars, threshold: ${PATCH_SIZE_THRESHOLD})`);
 
         let __dirname = path.dirname(new URL(import.meta.url).pathname);
         if (process.platform === "win32" && __dirname.startsWith("/")) {
@@ -233,7 +260,7 @@ async function main() {
                     ];
 
         const gemini = await openai.chat.completions.create({
-            model: 'google/gemini-2.5-pro',
+            model: selectedModel,
             messages: messagesPack,
             tools: [GitHubTool],
             tool_choice: "auto",
@@ -281,7 +308,7 @@ async function main() {
         }
 
         const finalResponse = await openai.chat.completions.create({
-                            model: 'google/gemini-2.5-pro',
+                            model: selectedModel,
                             messages: messagesPack,
         });
 
@@ -291,12 +318,23 @@ async function main() {
         console.log('\nThe PR explainer says: \n\n' + finalResponse.choices[0]?.message.content);
         }
         else {
-            console.error('😕 No valid response from Gemini.')
+            console.error('😕 No valid response from the explainer.')
         }
         
             
-    } catch (err) {
-        console.log("AN ERROR OCCURRED: \n" + err);
+    } 
+    catch (error: any) {
+
+        console.error(`⚠️  AN ERROR OCCURRED: ${error}`);
+        if (isVerbose && debugStream) {
+            debugStream.end();
+        }
+        process.exit(1);
+    }
+    finally {
+        if (isVerbose && debugStream) {
+            debugStream.end();
+        }
     }
 
 }
