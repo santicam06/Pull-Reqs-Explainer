@@ -22,7 +22,7 @@ def get_cache_filename(owner, repo, filepath, ref):
 # @param ref: Branch/tag/commit (should default to "main")
 # @param maxLines: Maximum lines to return (should default to something reasonable like 500)
 
-# https://raw.githubusercontent.com/microsoft/vscode/main/src/main.ts
+# e.g. https://raw.githubusercontent.com/microsoft/vscode/main/src/main.ts
 
 def get_github_file(owner, repo, filepath, ref = "main",  maxLines = 500):
     

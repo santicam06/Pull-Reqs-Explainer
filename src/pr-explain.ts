@@ -34,14 +34,18 @@ function getGithubFilePy(
   return new Promise((resolve, reject) => {
     
     // Spawn a new process with the calling command for the tool
-    const py = spawn('python', [
+    const venvPython = process.platform === 'win32'
+      ? path.join(process.cwd(), '.venv', 'Scripts', 'python.exe')
+      : path.join(process.cwd(), '.venv', 'bin', 'python');
+      
+    const py = spawn(venvPython, [
       path.join(__dirname, 'tools.py'),
       '--owner', owner,
       '--repo', repo,
       '--filepath', filepath,
       '--ref', ref,
       '--maxLines', maxLines.toString()
-    ]);
+    ], { env: { ...process.env, PYTHONIOENCODING: 'utf-8' } });
 
     let data = '';
     let err = '';
@@ -80,8 +84,7 @@ function confirmURL(url: string): { owner: string, repo: string, pullNumber: num
         }
     }
 
-    console.error("URL is not a valid GitHub PR, please check.");
-    process.exit(1);
+    throw new Error("URL is not a valid GitHub PR, please check.");
 }
 
 interface Comment {
@@ -183,23 +186,28 @@ async function main() {
             if (callback) callback();
             return true;
         };
+    } else {
+        process.stderr.write = () => true;
     }
   
   try {
 
         if (!url) {
-           console.error("No URL provided. try: node pr-explain.js <GitHub PR URL>");
-           process.exit(1);
+          throw new Error("No URL provided. try: npx tsx src/pr-explain.ts \"<GitHub PR URL>\"");
         }
         
         const { owner, repo, pullNumber } = confirmURL(url);
-        console.error(`Owner: ${owner}`);
-        console.error(`Repo: ${repo}`);
-        console.error(`Pull Req. Number: ${pullNumber}`);
+        console.log(`Owner: ${owner}`);
+        console.log(`Repo: ${repo}`);
+        console.log(`Pull Req. Number: ${pullNumber}`);
 
-        console.log("\n👓🗃️ Analyzing your Pull Request...")
+        console.log("\n👓🗃️  Analyzing your Pull Request...\n");
 
+        // Get the patch file from the Pull Request
+        // e.g. https://github.com/microsoft/vscode/pull/289861.patch
         const patchUrl = url + ".patch";
+
+
         const response = await fetch(patchUrl);
 
         if (!response.ok) throw new Error(`Failed to fetch: ${response.statusText}`);
@@ -219,10 +227,7 @@ async function main() {
         const selectedModel = text.length > PATCH_SIZE_THRESHOLD ? MODEL_PRO : MODEL_FLASH;
         console.error(`USING MODEL: ${selectedModel} (patch size: ${text.length} chars, threshold: ${PATCH_SIZE_THRESHOLD})`);
 
-        let __dirname = path.dirname(new URL(import.meta.url).pathname);
-        if (process.platform === "win32" && __dirname.startsWith("/")) {
-          __dirname = __dirname.slice(1);
-        }
+        let __dirname = path.dirname(fileURLToPath(import.meta.url));
         const instructPath = path.join(__dirname, 'INSTRUCTIONS.md');
         let instructions = fs.readFileSync(instructPath, 'utf-8');
     
@@ -259,14 +264,14 @@ async function main() {
                         { role: 'user', content: userPrompt },
                     ];
 
-        const gemini = await openai.chat.completions.create({
+        let gemini = await openai.chat.completions.create({
             model: selectedModel,
             messages: messagesPack,
             tools: [GitHubTool],
             tool_choice: "auto",
         });
 
-        const message = gemini?.choices[0]?.message;
+        let message = gemini?.choices[0]?.message;
         let i = 0;
         
         while (i < 5) {
@@ -300,6 +305,14 @@ async function main() {
                         }
                     } 
                 }
+
+                // Continue conversation with updated tool response
+                gemini = await openai.chat.completions.create({
+                    model: selectedModel,
+                    messages: messagesPack,
+                });
+
+                message = gemini?.choices[0]?.message;
                 continue;
             } 
             else if (message) {
@@ -307,29 +320,30 @@ async function main() {
             }
         }
 
-        const finalResponse = await openai.chat.completions.create({
-                            model: selectedModel,
-                            messages: messagesPack,
-        });
+        // Prepare final report
+        if (message?.content) {
+          const trimmedReport = message.content.trim();
+          const reportsDir = path.join(process.cwd(), 'reports');
 
-        const finalMessage = finalResponse.choices[0]?.message.content;
+          if (!fs.existsSync(reportsDir)) fs.mkdirSync(reportsDir, { recursive: true });
+          const reportPath = path.join(reportsDir, `pull_req_${pullNumber}.md`);
+          fs.writeFileSync(reportPath, trimmedReport, 'utf-8');
 
-        if (finalMessage) {
-        console.log('\nThe PR explainer says: \n\n' + finalResponse.choices[0]?.message.content);
+          console.log(`\n✅ Report saved to: ${reportPath}`);
+          console.log('\n🙂 Thanks for using this application. Good luck checking your PR. \n');
         }
         else {
-            console.error('😕 No valid response from the explainer.')
+            throw '😕 No valid response from the explainer.';
         }
-        
-            
+          
     } 
     catch (error: any) {
 
-        console.error(`⚠️  AN ERROR OCCURRED: ${error}`);
-        if (isVerbose && debugStream) {
-            debugStream.end();
-        }
-        process.exit(1);
+      console.log(`⚠️  AN ERROR OCCURRED: ${error}`);
+      if (isVerbose && debugStream) {
+          debugStream.end();
+      }
+      process.exit(1);
     }
     finally {
         if (isVerbose && debugStream) {
