@@ -17,12 +17,16 @@ Before running the application, follow these steps:
 1. For this repository, create a **GitHub Codespace (Cloud)** OR clone it locally and open it with your preferred code editor (e.g. Visual Studio Code, ...).
 
 >[!IMPORTANT]
-From this point on, make sure that your present working directory on your terminal is the root directory of the application: `.\Pull-Reqs-Explainer`.
+From this point on, make sure that your present working directory on your terminal is the root directory of the application: `Pull-Reqs-Explainer`.
 
 2. **Install Node.js** (v18 or later required):
    - **Windows**: Download the latest installer from [nodejs.org](https://nodejs.org/) or use: `winget install OpenJS.NodeJS.LTS`
    - **macOS**: Use Homebrew: `brew install node`
-   - **Linux (Ubuntu/Debian)**: `sudo apt update && sudo apt install nodejs npm`
+   - **Linux (Ubuntu/Debian)**:
+     ```sh
+     curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.3/install.sh | bash
+     nvm install 20
+     ```
    - **Cloud Workspaces (Codespaces, etc.)**: Node.js is usually pre-installed. Run `node --version` to verify and skip this step.
 
 3. **Install Python**:
@@ -33,8 +37,9 @@ From this point on, make sure that your present working directory on your termin
 
 4. **Create and Activate a Virtual Environment**:
    - Create the environment:
-     - **Windows**: `python -m venv .venv`
-     - **macOS/Linux**: `python3 -m venv .venv`
+      - **Windows**: `python -m venv .venv`
+      - **macOS**: `python3 -m venv .venv`
+      - **Linux (Ubuntu/Debian)**: `sudo apt install python3-venv && python3 -m venv .venv`
    - Activate it:
      - **Windows**: `.\.venv\Scripts\activate`
      - **macOS/Linux**: `source .venv/bin/activate`
