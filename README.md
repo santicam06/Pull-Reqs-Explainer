@@ -1,4 +1,4 @@
-# Pull-Reqs-Explainer
+# 📬🧑‍🏫 Pull-Reqs-Explainer
 
 AI-powered Pull Request review tool. Provides a detailed and intuitive report that explains the code changes occured in the Pull Request. Sends the PR's **.patch file** and **user comments** to an LLM, which explains the changes acting as a Principal Engineer mentoring a junior developer.
 
